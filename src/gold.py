@@ -101,7 +101,7 @@ def main() -> None:
     print("  head (5 linhas):")
     print(gold[COLS_ATRIBUTO].head().to_string(index=False))
     print("=" * 60)
-    print("\n✓ gold_atributos concluída.")
+    print("\n[OK] gold_atributos concluída.")
 
 
 if __name__ == "__main__":

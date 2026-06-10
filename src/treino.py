@@ -109,7 +109,7 @@ def main() -> None:
     print(f"  Acurácia resultado: {metricas['acuracia']:.4f} ({metricas['acuracia']*100:.1f}%)")
     print(f"  Artefatos salvos em {MODELS_DIR}/")
     print("=" * 60)
-    print("\n✓ Treino concluído.")
+    print("\n[OK] Treino concluído.")
 
 
 if __name__ == "__main__":

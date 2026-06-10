@@ -115,7 +115,7 @@ def main() -> None:
     for _, r in atual.head(10).iterrows():
         print(f"    {r['selecao']:<20} {r['elo']:.0f}")
     print("=" * 60)
-    print("\n✓ ELO concluído.")
+    print("\n[OK] ELO concluído.")
 
 
 if __name__ == "__main__":

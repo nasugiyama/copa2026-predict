@@ -119,7 +119,7 @@ def main() -> None:
     for valor, n in jogos["eh_amistoso"].value_counts().items():
         print(f"    {valor!s:<6} {n:,}")
     print("=" * 60)
-    print("\n✓ Camada silver concluída.")
+    print("\n[OK] Camada silver concluída.")
 
 
 if __name__ == "__main__":

@@ -165,17 +165,17 @@ def main() -> None:
     print("=" * 60)
     print(f"  previsoes: {len(previsoes)} jogos da Copa 2026")
     soma = (previsoes["prob_vitoria"] + previsoes["prob_empate"] + previsoes["prob_derrota"])
-    print(f"  soma das probabilidades: min={soma.min():.4f} max={soma.max():.4f} (≈1)")
+    print(f"  soma das probabilidades: min={soma.min():.4f} max={soma.max():.4f} (~1)")
     print("  exemplos:")
     for _, r in previsoes.head(3).iterrows():
         print(f"    {r['time_casa']} x {r['time_visitante']}: "
-              f"λ={r['gols_esperados_casa']:.2f}-{r['gols_esperados_visitante']:.2f} "
+              f"xG={r['gols_esperados_casa']:.2f}-{r['gols_esperados_visitante']:.2f} "
               f"V/E/D={r['prob_vitoria']:.2f}/{r['prob_empate']:.2f}/{r['prob_derrota']:.2f}")
     print("\n  experimentos_mae (ordenado por mae_casa):")
     for _, r in experimentos.sort_values("mae_casa").iterrows():
         print(f"    {r['config']:<14} mae_casa={r['mae_casa']:.4f}  mae_visitante={r['mae_visitante']:.4f}")
     print("=" * 60)
-    print("\n✓ Previsão + experimentos concluídos.")
+    print("\n[OK] Previsao + experimentos concluidos.")
 
 
 if __name__ == "__main__":

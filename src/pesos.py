@@ -117,7 +117,7 @@ def main() -> None:
     for _, r in recentes.iterrows():
         print(f"    {r['data'].date()}  recencia={r['peso_recencia']:.4f}  torneio={r['peso_torneio']}")
     print("=" * 60)
-    print("\n✓ silver_ponderado concluída.")
+    print("\n[OK] silver_ponderado concluída.")
 
 
 if __name__ == "__main__":

@@ -320,7 +320,7 @@ def main() -> None:
         print(f"  {r['selecao']:<22}" + "".join(f"{r[c]*100:>6.1f}%" for c in COLS_PROB))
     print("=" * 64)
     print(f"  soma prob_campea = {df['prob_campea'].sum()*100:.1f}%  |  seleções: {len(df)}")
-    print("\n✓ gold_probabilidades_copa concluída.")
+    print("\n[OK] gold_probabilidades_copa concluida.")
 
 
 if __name__ == "__main__":

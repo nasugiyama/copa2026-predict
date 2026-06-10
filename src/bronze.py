@@ -108,7 +108,7 @@ def main() -> None:
     imprimir_inventario(df)
 
     total = gravar(df)
-    print(f"\n✓ bronze_jogos criada com {total:,} linhas.")
+    print(f"\n[OK] bronze_jogos criada com {total:,} linhas.")
 
 
 if __name__ == "__main__":
