@@ -30,7 +30,7 @@ except Exception:
 from db import get_engine  # noqa: E402
 from previsao import PESO_TORNEIO_COPA, carregar_modelos, prever_jogo  # noqa: E402
 from monte_carlo import NOMES_RODADA, preparar, simular_torneio_detalhado, slots_terceiros  # noqa: E402
-from bandeiras import bandeira, com_bandeira  # noqa: E402
+from bandeiras import bandeira, com_bandeira, com_bandeira_html  # noqa: E402
 
 TOP_N = 12  # quantas seleções mostrar na página de probabilidades
 
@@ -118,10 +118,10 @@ def pagina_probabilidades():
 
 def _placar_md(casa, gc, gv, visit, vencedor, penaltis):
     """Linha de placar do mata-mata, com bandeiras, vencedor em negrito e marca de pênaltis."""
-    nome_casa = f"**{com_bandeira(casa)}**" if vencedor == casa else com_bandeira(casa)
-    nome_visit = f"**{com_bandeira(visit)}**" if vencedor == visit else com_bandeira(visit)
-    pen = " _(pên.)_" if penaltis else ""
-    return f"{nome_casa} {gc} - {gv} {nome_visit}{pen}"
+    nome_casa = f"<b>{com_bandeira_html(casa)}</b>" if vencedor == casa else com_bandeira_html(casa)
+    nome_visit = f"<b>{com_bandeira_html(visit)}</b>" if vencedor == visit else com_bandeira_html(visit)
+    pen = " <i>(pên.)</i>" if penaltis else ""
+    return f"{nome_casa} &nbsp;{gc} - {gv}&nbsp; {nome_visit}{pen}"
 
 
 def pagina_simulacao():
@@ -136,18 +136,19 @@ def pagina_simulacao():
     r = simular_torneio_detalhado(grupo_de, times_do_grupo, jogos_grupo, calendario, lambdas, slots_3)
 
     # Campeão em destaque + pódio.
-    st.success(f"🏆 Campeã: **{com_bandeira(r['campeao'])}**")
+    st.markdown(f'<div style="background:#1a472a;padding:12px 18px;border-radius:8px;font-size:1.2rem;">🏆 <b>Campeã: {com_bandeira_html(r["campeao"], h=24)}</b></div>', unsafe_allow_html=True)
+    st.write("")
     c1, c2, c3 = st.columns(3)
-    c1.metric("🥇 Campeã", com_bandeira(r["campeao"]))
-    c2.metric("🥈 Vice", com_bandeira(r["vice"]))
-    c3.metric("🥉 Terceiro", com_bandeira(r["terceiro"]))
+    c1.markdown(f"**🥇 Campeã**<br>{com_bandeira_html(r['campeao'])}", unsafe_allow_html=True)
+    c2.markdown(f"**🥈 Vice**<br>{com_bandeira_html(r['vice'])}", unsafe_allow_html=True)
+    c3.markdown(f"**🥉 Terceiro**<br>{com_bandeira_html(r['terceiro'])}", unsafe_allow_html=True)
 
     # Mata-mata por rodada (na ordem do calendário: 32-avos → ... → 3º → Final).
     st.header("Mata-mata")
     for rodada, jogos in r["mata_mata"].items():
         st.markdown(f"### {NOMES_RODADA.get(rodada, rodada)}")
         for jogo in jogos:
-            st.write(_placar_md(*jogo))
+            st.markdown(_placar_md(*jogo), unsafe_allow_html=True)
 
     # Fase de grupos (recolhida, para não competir com o mata-mata).
     st.header("Fase de grupos")
@@ -156,7 +157,7 @@ def pagina_simulacao():
             col_jogos, col_tabela = st.columns([1, 1.3])
             with col_jogos:
                 for casa, gc, gv, visit in r["grupos"][grupo]["jogos"]:
-                    st.write(f"{com_bandeira(casa)} **{gc} - {gv}** {com_bandeira(visit)}")
+                    st.markdown(f"{com_bandeira_html(casa)} <b>{gc} - {gv}</b> {com_bandeira_html(visit)}", unsafe_allow_html=True)
             with col_tabela:
                 tabela = r["grupos"][grupo]["classificacao"].copy()
                 tabela["selecao"] = tabela["selecao"].map(com_bandeira)

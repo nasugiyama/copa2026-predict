@@ -54,6 +54,12 @@ _ISO2 = {
 
 FALLBACK = "🏳️"
 
+_UK_FLAGCDN = {
+    "England": "gb-eng",
+    "Scotland": "gb-sct",
+    "Wales": "gb-wls",
+}
+
 
 def _emoji(iso2: str) -> str:
     """Converte um código ISO-2 no emoji de bandeira (regional indicators)."""
@@ -71,3 +77,20 @@ def bandeira(nome: str) -> str:
 def com_bandeira(nome: str) -> str:
     """Nome precedido da bandeira, ex.: '🇧🇷 Brazil'."""
     return f"{bandeira(nome)} {nome}"
+
+
+def bandeira_img(nome: str, h: int = 18) -> str:
+    """Tag <img> com a bandeira via flagcdn.com (funciona em qualquer browser/OS)."""
+    if nome in _UK_FLAGCDN:
+        codigo = _UK_FLAGCDN[nome]
+    else:
+        iso = _ISO2.get(nome)
+        if not iso:
+            return FALLBACK
+        codigo = iso.lower()
+    return f'<img src="https://flagcdn.com/w40/{codigo}.png" height="{h}" style="vertical-align:middle;margin-right:4px;">'
+
+
+def com_bandeira_html(nome: str, h: int = 18) -> str:
+    """Nome com bandeira como HTML (para st.markdown unsafe_allow_html=True)."""
+    return f"{bandeira_img(nome, h)}{nome}"
