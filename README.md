@@ -1,3 +1,13 @@
+---
+title: Copa 2026 Predict
+emoji: ⚽
+colorFrom: green
+colorTo: yellow
+sdk: docker
+app_file: app.py
+pinned: false
+---
+
 # Copa 2026 Predict
 
 Modelo preditivo para a Copa do Mundo FIFA 2026.
