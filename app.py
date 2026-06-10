@@ -187,9 +187,9 @@ def pagina_explorador():
     times = sorted(elos)
 
     c1, c2 = st.columns(2)
-    casa = c1.selectbox("Mandante", times, format_func=com_bandeira,
+    casa = c1.selectbox("Mandante", times,
                         index=times.index("Brazil") if "Brazil" in times else 0)
-    fora = c2.selectbox("Visitante", times, format_func=com_bandeira,
+    fora = c2.selectbox("Visitante", times,
                         index=times.index("Spain") if "Spain" in times else 1)
     neutro = st.checkbox("Campo neutro", value=True)
 
@@ -208,7 +208,7 @@ def pagina_explorador():
         p3.metric(f"Vitória {com_bandeira(fora)}", f"{p['prob_derrota']*100:.1f}%")
 
         # Histórico de confrontos
-        st.subheader(f"Últimos confrontos — {com_bandeira(casa)} vs {com_bandeira(fora)}")
+        st.subheader(f"Últimos confrontos — {casa} vs {fora}")
         hist = _historico_h2h(casa, fora)
         if hist.empty:
             st.info("Nenhum confronto encontrado entre essas seleções no histórico.")
