@@ -28,7 +28,7 @@ except Exception:
     pass
 
 from db import get_engine  # noqa: E402
-from previsao import PESO_TORNEIO_COPA, carregar_modelos, prever_jogo  # noqa: E402
+from previsao import PESO_TORNEIO_COPA, carregar_modelos, prever_jogo, _carregar_extras  # noqa: E402
 from monte_carlo import NOMES_RODADA, preparar, simular_torneio_detalhado, slots_terceiros  # noqa: E402
 from bandeiras import bandeira, com_bandeira, com_bandeira_html  # noqa: E402
 
@@ -70,10 +70,10 @@ def _modelos_e_elos():
     modelo_casa, modelo_visit, _ = carregar_modelos()
     elos = dict(pd.read_sql("SELECT selecao, elo FROM silver_elo_atual", _engine()).itertuples(index=False, name=None))
     try:
-        formas = dict(pd.read_sql("SELECT selecao, forma FROM silver_forma_atual", _engine()).itertuples(index=False, name=None))
+        extras = _carregar_extras(_engine())
     except Exception:
-        formas = {}
-    return modelo_casa, modelo_visit, elos, formas
+        extras = {"formas": {}, "h2h": {}, "rank": {}}
+    return modelo_casa, modelo_visit, elos, extras
 
 
 @st.cache_resource
@@ -171,7 +171,7 @@ def pagina_simulacao():
 def pagina_explorador():
     st.title("🔍 Explorador de partidas")
     st.caption("Escolha dois times e veja os gols esperados (xG) e as probabilidades de resultado.")
-    modelo_casa, modelo_visit, elos, formas = _modelos_e_elos()
+    modelo_casa, modelo_visit, elos, extras = _modelos_e_elos()
     times = sorted(elos)
 
     c1, c2 = st.columns(2)
@@ -186,7 +186,9 @@ def pagina_explorador():
             st.warning("Escolha duas seleções diferentes.")
             return
         p = prever_jogo(casa, fora, neutro, PESO_TORNEIO_COPA,
-                        elos=elos, modelo_casa=modelo_casa, modelo_visit=modelo_visit, formas=formas)
+                        elos=elos, modelo_casa=modelo_casa, modelo_visit=modelo_visit,
+                        formas=extras["formas"], h2h=extras["h2h"],
+                        rank=extras["rank"] or None)
         c1.metric(f"xG {com_bandeira(casa)}", round(p["gols_esperados_casa"], 2))
         c2.metric(f"xG {com_bandeira(fora)}", round(p["gols_esperados_visitante"], 2))
         st.subheader("Probabilidades de resultado")

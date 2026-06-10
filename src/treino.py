@@ -18,8 +18,18 @@ import poisson
 from db import get_engine, get_raw_connection
 
 # Os 6 atributos do modelo (identificadores NÃO entram como feature).
-ATRIBUTOS = ["elo_casa", "elo_visitante", "dif_elo", "neutro", "peso_torneio", "peso_recencia",
-             "forma_casa", "forma_visitante"]
+_ATRIBUTOS_BASE = ["elo_casa", "elo_visitante", "dif_elo", "neutro", "peso_torneio", "peso_recencia",
+                   "forma_casa", "forma_visitante", "h2h_casa"]
+_ATRIBUTOS_RANK = ["rank_casa_norm", "rank_visitante_norm"]
+
+# Inicializado com o conjunto base; main() atualiza se o ranking FIFA estiver disponível.
+ATRIBUTOS: list[str] = list(_ATRIBUTOS_BASE)
+
+
+def _detectar_atributos(df: pd.DataFrame) -> list[str]:
+    """Usa ranking FIFA se estiver na tabela, caso contrário só os atributos base."""
+    extras = [c for c in _ATRIBUTOS_RANK if c in df.columns]
+    return _ATRIBUTOS_BASE + extras
 
 CORTE = pd.Timestamp("2024-01-01")  # treino < CORTE <= teste
 MODELS_DIR = "models"
@@ -89,8 +99,12 @@ def gravar_metricas(m: dict) -> None:
 
 
 def main() -> None:
+    global ATRIBUTOS
     print("Lendo gold_atributos...")
     df = pd.read_sql("SELECT * FROM gold_atributos", get_engine(), parse_dates=["data"])
+
+    ATRIBUTOS = _detectar_atributos(df)
+    print(f"  features: {ATRIBUTOS}")
 
     treino = df[df["data"] < CORTE]
     teste = df[df["data"] >= CORTE]
@@ -108,6 +122,7 @@ def main() -> None:
     print(f"  MAE gols casa:      {metricas['mae_casa']:.4f}")
     print(f"  MAE gols visitante: {metricas['mae_visitante']:.4f}")
     print(f"  Acurácia resultado: {metricas['acuracia']:.4f} ({metricas['acuracia']*100:.1f}%)")
+    print(f"  features usadas:    {len(ATRIBUTOS)}")
     print(f"  Artefatos salvos em {MODELS_DIR}/")
     print("=" * 60)
     print("\n[OK] Treino concluído.")

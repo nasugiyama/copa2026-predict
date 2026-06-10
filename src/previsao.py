@@ -56,12 +56,30 @@ def carregar_modelos():
     return mc, mv, colunas
 
 
-def prever_jogo(time_casa, time_visitante, neutro, peso_torneio, *, elos, modelo_casa, modelo_visit, formas=None):
-    """Prediz um jogo a partir do ELO e forma atual de cada seleção."""
+def _carregar_extras(eng) -> dict:
+    """Carrega formas, H2H e ranking FIFA (se disponível) do banco."""
+    extras: dict = {}
+    extras["formas"] = dict(pd.read_sql("SELECT selecao, forma FROM silver_forma_atual", eng)
+                            .itertuples(index=False, name=None))
+    h2h_df = pd.read_sql("SELECT time_casa, time_visitante, h2h FROM silver_h2h_atual", eng)
+    extras["h2h"] = {(r.time_casa, r.time_visitante): r.h2h for r in h2h_df.itertuples(index=False)}
+    try:
+        rank_df = pd.read_sql("SELECT selecao, rank_norm FROM silver_fifa_rank_atual", eng)
+        extras["rank"] = dict(rank_df.itertuples(index=False, name=None))
+    except Exception:
+        extras["rank"] = {}
+    return extras
+
+
+def prever_jogo(time_casa, time_visitante, neutro, peso_torneio, *,
+                elos, modelo_casa, modelo_visit,
+                formas=None, h2h=None, rank=None):
+    """Prediz um jogo usando ELO, forma, H2H e ranking FIFA (se disponível)."""
     elo_casa = elos[time_casa]
     elo_visit = elos[time_visitante]
     forma_c = formas.get(time_casa, 0.5) if formas else 0.5
     forma_v = formas.get(time_visitante, 0.5) if formas else 0.5
+    h2h_c = h2h.get((time_casa, time_visitante), 0.5) if h2h else 0.5
     linha = {
         "elo_casa": elo_casa,
         "elo_visitante": elo_visit,
@@ -71,7 +89,11 @@ def prever_jogo(time_casa, time_visitante, neutro, peso_torneio, *, elos, modelo
         "peso_recencia": 1.0,
         "forma_casa": forma_c,
         "forma_visitante": forma_v,
+        "h2h_casa": h2h_c,
     }
+    if rank:
+        linha["rank_casa_norm"] = rank.get(time_casa, 0.5)
+        linha["rank_visitante_norm"] = rank.get(time_visitante, 0.5)
     X = montar_X(pd.DataFrame([linha]))
     lam_casa = float(modelo_casa.predict(X)[0])
     lam_visit = float(modelo_visit.predict(X)[0])
@@ -90,12 +112,13 @@ def prever_jogo(time_casa, time_visitante, neutro, peso_torneio, *, elos, modelo
 def gerar_previsoes(modelo_casa, modelo_visit) -> pd.DataFrame:
     eng = get_engine()
     elos = dict(pd.read_sql("SELECT selecao, elo FROM silver_elo_atual", eng).itertuples(index=False, name=None))
-    formas = dict(pd.read_sql("SELECT selecao, forma FROM silver_forma_atual", eng).itertuples(index=False, name=None))
+    extras = _carregar_extras(eng)
     copa = pd.read_sql("SELECT time_casa, time_visitante, neutro FROM silver_copa2026 ORDER BY data, id", eng)
 
     linhas = [
         prever_jogo(j.time_casa, j.time_visitante, j.neutro, PESO_TORNEIO_COPA,
-                    elos=elos, modelo_casa=modelo_casa, modelo_visit=modelo_visit, formas=formas)
+                    elos=elos, modelo_casa=modelo_casa, modelo_visit=modelo_visit,
+                    formas=extras["formas"], h2h=extras["h2h"], rank=extras["rank"] or None)
         for j in copa.itertuples(index=False)
     ]
     return pd.DataFrame(linhas)

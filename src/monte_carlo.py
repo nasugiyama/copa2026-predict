@@ -44,10 +44,14 @@ CREATE TABLE gold_probabilidades_copa (
 # Preparação (uma vez)
 # --------------------------------------------------------------------------- #
 def preparar():
+    from previsao import _carregar_extras
     eng = get_engine()
     modelo_casa, modelo_visit, _ = carregar_modelos()
     elos = dict(pd.read_sql("SELECT selecao, elo FROM silver_elo_atual", eng).itertuples(index=False, name=None))
-    formas = dict(pd.read_sql("SELECT selecao, forma FROM silver_forma_atual", eng).itertuples(index=False, name=None))
+    extras = _carregar_extras(eng)
+    formas = extras["formas"]
+    h2h = extras["h2h"]
+    rank = extras["rank"]
 
     grupos_df = pd.read_csv("data/grupos_copa2026.csv")
     grupo_de = dict(zip(grupos_df["nation"], grupos_df["group"]))
@@ -58,7 +62,6 @@ def preparar():
     ).itertuples(index=False, name=None)
     jogos_grupo = list(jogos_grupo)
 
-    # Validação: cada jogo de grupo é intra-grupo.
     for casa, visit, _ in jogos_grupo:
         assert grupo_de[casa] == grupo_de[visit], f"jogo entre grupos diferentes: {casa} x {visit}"
 
@@ -70,14 +73,16 @@ def preparar():
         chave = (casa, visit, neutro)
         if chave not in cache:
             elo_c, elo_v = elos[casa], elos[visit]
-            fc = formas.get(casa, 0.5)
-            fv = formas.get(visit, 0.5)
-            linha = pd.DataFrame([{
+            linha: dict = {
                 "elo_casa": elo_c, "elo_visitante": elo_v, "dif_elo": elo_c - elo_v,
                 "neutro": bool(neutro), "peso_torneio": PESO_TORNEIO_COPA, "peso_recencia": 1.0,
-                "forma_casa": fc, "forma_visitante": fv,
-            }])
-            X = montar_X(linha)
+                "forma_casa": formas.get(casa, 0.5), "forma_visitante": formas.get(visit, 0.5),
+                "h2h_casa": h2h.get((casa, visit), 0.5),
+            }
+            if rank:
+                linha["rank_casa_norm"] = rank.get(casa, 0.5)
+                linha["rank_visitante_norm"] = rank.get(visit, 0.5)
+            X = montar_X(pd.DataFrame([linha]))
             cache[chave] = (float(modelo_casa.predict(X)[0]), float(modelo_visit.predict(X)[0]))
         return cache[chave]
 
