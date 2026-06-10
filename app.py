@@ -33,9 +33,25 @@ from monte_carlo import NOMES_RODADA, preparar, simular_torneio_detalhado, slots
 from bandeiras import bandeira, com_bandeira, com_bandeira_html  # noqa: E402
 
 TOP_N = 12  # quantas seleções mostrar na página de probabilidades
+H2H_N = 10  # últimos N confrontos exibidos no explorador
 
 MODELS_DIR = os.path.join(os.path.dirname(__file__), "models")
 _MODEL_FILES = ["modelo_poisson_casa.pkl", "modelo_poisson_visitante.pkl", "colunas_atributos.pkl"]
+
+
+@st.cache_data(ttl=3600)
+def _historico_h2h(time_a: str, time_b: str, n: int = H2H_N) -> pd.DataFrame:
+    """Últimos n jogos entre time_a e time_b, em qualquer ordem de mandante/visitante."""
+    query = """
+        SELECT data, time_casa, gols_casa, gols_visitante, time_visitante, torneio, peso_torneio
+        FROM silver_ponderado
+        WHERE (time_casa = %(a)s AND time_visitante = %(b)s)
+           OR (time_casa = %(b)s AND time_visitante = %(a)s)
+        ORDER BY data DESC
+        LIMIT %(n)s
+    """
+    return pd.read_sql(query, _engine(), params={"a": time_a, "b": time_b, "n": n},
+                       parse_dates=["data"])
 
 
 def _garantir_modelos() -> None:
@@ -196,6 +212,31 @@ def pagina_explorador():
         p1.metric(f"Vitória {com_bandeira(casa)}", f"{p['prob_vitoria']*100:.1f}%")
         p2.metric("Empate", f"{p['prob_empate']*100:.1f}%")
         p3.metric(f"Vitória {com_bandeira(fora)}", f"{p['prob_derrota']*100:.1f}%")
+
+        # Histórico de confrontos
+        st.subheader(f"Últimos confrontos — {com_bandeira(casa)} vs {com_bandeira(fora)}")
+        hist = _historico_h2h(casa, fora)
+        if hist.empty:
+            st.info("Nenhum confronto encontrado entre essas seleções no histórico.")
+        else:
+            _PESO_LABEL = {1: "Amistoso", 2: "Competitivo", 3: "Copa do Mundo"}
+            for _, r in hist.iterrows():
+                eh_casa = r["time_casa"] == casa
+                t1, g1 = (casa, r["gols_casa"]) if eh_casa else (casa, r["gols_visitante"])
+                t2, g2 = (fora, r["gols_visitante"]) if eh_casa else (fora, r["gols_casa"])
+                if g1 > g2:
+                    resultado = f"**{com_bandeira_html(t1)} {g1} – {g2} {com_bandeira_html(t2)}**"
+                elif g1 < g2:
+                    resultado = f"{com_bandeira_html(t1)} {g1} – **{g2} {com_bandeira_html(t2)}**"
+                else:
+                    resultado = f"{com_bandeira_html(t1)} **{g1} – {g2}** {com_bandeira_html(t2)}"
+                peso_label = _PESO_LABEL.get(int(r["peso_torneio"]), r["torneio"])
+                linha = (
+                    f"🗓 {r['data'].strftime('%d/%m/%Y')}&nbsp;&nbsp;"
+                    f"{resultado}&nbsp;&nbsp;"
+                    f"<span style='color:gray;font-size:0.85em'>{r['torneio']} ({peso_label})</span>"
+                )
+                st.markdown(linha, unsafe_allow_html=True)
 
 
 # --------------------------------------------------------------------------- #
