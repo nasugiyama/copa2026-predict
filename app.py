@@ -29,6 +29,7 @@ except Exception:
 
 from db import get_engine  # noqa: E402
 from previsao import PESO_TORNEIO_COPA, carregar_modelos, prever_jogo  # noqa: E402
+import poisson as _poisson  # noqa: E402
 from monte_carlo import NOMES_RODADA, preparar, simular_torneio_detalhado, slots_terceiros  # noqa: E402
 from bandeiras import bandeira, com_bandeira, com_bandeira_html  # noqa: E402
 
@@ -206,6 +207,21 @@ def pagina_explorador():
         p1.metric(f"Vitória {com_bandeira(casa)}", f"{p['prob_vitoria']*100:.1f}%")
         p2.metric("Empate", f"{p['prob_empate']*100:.1f}%")
         p3.metric(f"Vitória {com_bandeira(fora)}", f"{p['prob_derrota']*100:.1f}%")
+
+        # Palpite de placar (top 3 mais prováveis)
+        st.subheader("Palpite de placar")
+        import numpy as np
+        m = _poisson.matriz_placares(p["gols_esperados_casa"], p["gols_esperados_visitante"])
+        top3_idx = np.dstack(np.unravel_index(np.argsort(m.ravel())[::-1], m.shape))[0][:3]
+        cols = st.columns(3)
+        for col, (gc, gv) in zip(cols, top3_idx):
+            prob = m[gc, gv] * 100
+            col.markdown(
+                f"<div style='text-align:center'>"
+                f"{com_bandeira_html(casa, h=22)} <span style='font-size:1.8rem;font-weight:bold'>{gc} – {gv}</span> {com_bandeira_html(fora, h=22)}"
+                f"<br><span style='font-size:1rem;color:gray'>{prob:.1f}%</span></div>",
+                unsafe_allow_html=True,
+            )
 
         # Histórico de confrontos
         st.subheader(f"Últimos confrontos — {casa} vs {fora}")
