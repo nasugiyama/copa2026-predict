@@ -34,6 +34,18 @@ from bandeiras import bandeira, com_bandeira  # noqa: E402
 
 TOP_N = 12  # quantas seleções mostrar na página de probabilidades
 
+MODELS_DIR = os.path.join(os.path.dirname(__file__), "models")
+_MODEL_FILES = ["modelo_poisson_casa.pkl", "modelo_poisson_visitante.pkl", "colunas_atributos.pkl"]
+
+
+def _garantir_modelos() -> None:
+    if all(os.path.exists(os.path.join(MODELS_DIR, f)) for f in _MODEL_FILES):
+        return
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    with st.spinner("Treinando modelos Poisson pela primeira vez (pode levar ~1 min)..."):
+        import treino
+        treino.main()
+
 st.set_page_config(page_title="IAPredict — Copa 2026", layout="wide")
 
 FASES_PT = {
@@ -48,6 +60,9 @@ FASES_PT = {
 @st.cache_resource
 def _engine():
     return get_engine()
+
+
+_garantir_modelos()
 
 
 @st.cache_resource
