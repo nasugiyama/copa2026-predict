@@ -18,7 +18,8 @@ import poisson
 from db import get_engine, get_raw_connection
 
 # Os 6 atributos do modelo (identificadores NÃO entram como feature).
-ATRIBUTOS = ["elo_casa", "elo_visitante", "dif_elo", "neutro", "peso_torneio", "peso_recencia"]
+ATRIBUTOS = ["elo_casa", "elo_visitante", "dif_elo", "neutro", "peso_torneio", "peso_recencia",
+             "forma_casa", "forma_visitante"]
 
 CORTE = pd.Timestamp("2024-01-01")  # treino < CORTE <= teste
 MODELS_DIR = "models"

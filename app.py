@@ -69,7 +69,11 @@ _garantir_modelos()
 def _modelos_e_elos():
     modelo_casa, modelo_visit, _ = carregar_modelos()
     elos = dict(pd.read_sql("SELECT selecao, elo FROM silver_elo_atual", _engine()).itertuples(index=False, name=None))
-    return modelo_casa, modelo_visit, elos
+    try:
+        formas = dict(pd.read_sql("SELECT selecao, forma FROM silver_forma_atual", _engine()).itertuples(index=False, name=None))
+    except Exception:
+        formas = {}
+    return modelo_casa, modelo_visit, elos, formas
 
 
 @st.cache_resource
@@ -167,7 +171,7 @@ def pagina_simulacao():
 def pagina_explorador():
     st.title("🔍 Explorador de partidas")
     st.caption("Escolha dois times e veja os gols esperados (xG) e as probabilidades de resultado.")
-    modelo_casa, modelo_visit, elos = _modelos_e_elos()
+    modelo_casa, modelo_visit, elos, formas = _modelos_e_elos()
     times = sorted(elos)
 
     c1, c2 = st.columns(2)
@@ -182,7 +186,7 @@ def pagina_explorador():
             st.warning("Escolha duas seleções diferentes.")
             return
         p = prever_jogo(casa, fora, neutro, PESO_TORNEIO_COPA,
-                        elos=elos, modelo_casa=modelo_casa, modelo_visit=modelo_visit)
+                        elos=elos, modelo_casa=modelo_casa, modelo_visit=modelo_visit, formas=formas)
         c1.metric(f"xG {com_bandeira(casa)}", round(p["gols_esperados_casa"], 2))
         c2.metric(f"xG {com_bandeira(fora)}", round(p["gols_esperados_visitante"], 2))
         st.subheader("Probabilidades de resultado")

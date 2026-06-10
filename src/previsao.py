@@ -56,10 +56,12 @@ def carregar_modelos():
     return mc, mv, colunas
 
 
-def prever_jogo(time_casa, time_visitante, neutro, peso_torneio, *, elos, modelo_casa, modelo_visit):
-    """Prediz um jogo a partir do ELO atual de cada seleção (peso_recencia=1.0, jogo no presente)."""
+def prever_jogo(time_casa, time_visitante, neutro, peso_torneio, *, elos, modelo_casa, modelo_visit, formas=None):
+    """Prediz um jogo a partir do ELO e forma atual de cada seleção."""
     elo_casa = elos[time_casa]
     elo_visit = elos[time_visitante]
+    forma_c = formas.get(time_casa, 0.5) if formas else 0.5
+    forma_v = formas.get(time_visitante, 0.5) if formas else 0.5
     linha = {
         "elo_casa": elo_casa,
         "elo_visitante": elo_visit,
@@ -67,6 +69,8 @@ def prever_jogo(time_casa, time_visitante, neutro, peso_torneio, *, elos, modelo
         "neutro": bool(neutro),
         "peso_torneio": peso_torneio,
         "peso_recencia": 1.0,
+        "forma_casa": forma_c,
+        "forma_visitante": forma_v,
     }
     X = montar_X(pd.DataFrame([linha]))
     lam_casa = float(modelo_casa.predict(X)[0])
@@ -86,11 +90,12 @@ def prever_jogo(time_casa, time_visitante, neutro, peso_torneio, *, elos, modelo
 def gerar_previsoes(modelo_casa, modelo_visit) -> pd.DataFrame:
     eng = get_engine()
     elos = dict(pd.read_sql("SELECT selecao, elo FROM silver_elo_atual", eng).itertuples(index=False, name=None))
+    formas = dict(pd.read_sql("SELECT selecao, forma FROM silver_forma_atual", eng).itertuples(index=False, name=None))
     copa = pd.read_sql("SELECT time_casa, time_visitante, neutro FROM silver_copa2026 ORDER BY data, id", eng)
 
     linhas = [
         prever_jogo(j.time_casa, j.time_visitante, j.neutro, PESO_TORNEIO_COPA,
-                    elos=elos, modelo_casa=modelo_casa, modelo_visit=modelo_visit)
+                    elos=elos, modelo_casa=modelo_casa, modelo_visit=modelo_visit, formas=formas)
         for j in copa.itertuples(index=False)
     ]
     return pd.DataFrame(linhas)

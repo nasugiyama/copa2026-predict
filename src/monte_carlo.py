@@ -47,6 +47,7 @@ def preparar():
     eng = get_engine()
     modelo_casa, modelo_visit, _ = carregar_modelos()
     elos = dict(pd.read_sql("SELECT selecao, elo FROM silver_elo_atual", eng).itertuples(index=False, name=None))
+    formas = dict(pd.read_sql("SELECT selecao, forma FROM silver_forma_atual", eng).itertuples(index=False, name=None))
 
     grupos_df = pd.read_csv("data/grupos_copa2026.csv")
     grupo_de = dict(zip(grupos_df["nation"], grupos_df["group"]))
@@ -69,9 +70,12 @@ def preparar():
         chave = (casa, visit, neutro)
         if chave not in cache:
             elo_c, elo_v = elos[casa], elos[visit]
+            fc = formas.get(casa, 0.5)
+            fv = formas.get(visit, 0.5)
             linha = pd.DataFrame([{
                 "elo_casa": elo_c, "elo_visitante": elo_v, "dif_elo": elo_c - elo_v,
                 "neutro": bool(neutro), "peso_torneio": PESO_TORNEIO_COPA, "peso_recencia": 1.0,
+                "forma_casa": fc, "forma_visitante": fv,
             }])
             X = montar_X(linha)
             cache[chave] = (float(modelo_casa.predict(X)[0]), float(modelo_visit.predict(X)[0]))
