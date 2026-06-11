@@ -12,7 +12,7 @@ pinned: false
 
 Modelo preditivo para a Copa do Mundo FIFA 2026 usando Regressão de Poisson, Rating ELO e Simulação Monte Carlo.
 
-**[Acesse o app ao vivo](https://huggingface.co/spaces/nasugiyama/copa2026-predict)**
+**[Acesse o app ao vivo](https://copa2026-predict.streamlit.app)**
 
 ---
 
@@ -20,11 +20,12 @@ Modelo preditivo para a Copa do Mundo FIFA 2026 usando Regressão de Poisson, Ra
 
 Um pipeline de Machine Learning que:
 
-1. Aprende com 20 anos de histórico de jogos internacionais (2006–2025)
+1. Aprende com mais de 40 anos de histórico de jogos internacionais (1980–2025)
 2. Calcula a força de cada seleção usando Rating ELO dinâmico
 3. Prevê gols esperados com Regressão de Poisson
 4. Simula o torneio completo 1.000 vezes via Monte Carlo
 5. Exibe as probabilidades de título em um dashboard interativo
+6. Permite registrar resultados reais e atualizar as previsões em tempo real
 
 A pergunta central: **a máquina consegue prever melhor que um humano?**
 
@@ -38,14 +39,14 @@ data/results.csv (49.450 jogos históricos)
         v
 Pipeline Medallion
   Bronze -> Silver -> Pesos -> ELO -> Gold
-  Regressão de Poisson (2 modelos)
+  Regressão de Poisson (2 modelos GLM)
   Simulação Monte Carlo (N=1000, seed=42)
         |
         v
    Supabase (PostgreSQL)
         |
         v
-   Dashboard Streamlit (3 páginas)
+   Dashboard Streamlit (4 páginas)
 ```
 
 ### Camadas de dados
@@ -62,23 +63,33 @@ Pipeline Medallion
 
 ### Rating ELO
 
-Cada seleção começa em 1500 pontos. A cada jogo, o rating é atualizado com base no resultado e na importância do torneio (amistoso = K20, eliminatórias = K40, Copa do Mundo = K60). Jogos mais recentes têm maior peso via decaimento exponencial com meia-vida de 5 anos.
+Cada seleção começa em 1500 pontos. A cada jogo, o rating é atualizado com base no resultado e na importância do torneio (amistoso = K20, eliminatórias/competitivos = K40, Copa do Mundo = K60). Jogos mais recentes têm maior peso via decaimento exponencial com meia-vida de 5 anos.
+
+O ELO foi escolhido como única feature do modelo por ser a métrica mais comparável entre confederações — rankings FIFA e forma recente (Copa América, Eurocopa) introduzem vieses por não permitirem participação cruzada entre continentes.
 
 ### Regressão de Poisson
 
-Dois modelos GLM Poisson independentes treinados com:
-- ELO do time da casa e visitante
+Dois modelos GLM Poisson independentes — um para gols do mandante, outro para gols do visitante — treinados com 6 features:
+
+- ELO do time da casa e do visitante
 - Diferença de ELO
-- Mando de campo (neutro ou não)
-- Peso do torneio e recência
+- Campo neutro (sim/não)
+- Peso do torneio
+- Peso de recência
+
+Acurácia no holdout temporal (2024+): ~60%, alinhado ao teto esperado para futebol internacional sem dados em tempo real.
 
 ### Simulação Monte Carlo
 
-O torneio completo é simulado 1.000 vezes com seed fixo (42) para reprodutibilidade. Em cada simulação, os placares são sorteados das distribuições Poisson estimadas. O resultado é a frequência com que cada seleção atingiu cada fase.
+O torneio completo é simulado 1.000 vezes com seed fixo (42) para reprodutibilidade. Em cada simulação, os placares são sorteados das distribuições Poisson estimadas, respeitando a estrutura real da Copa 2026 (grupos A–L, mata-mata de 32 avos). O resultado é a frequência com que cada seleção atingiu cada fase.
 
 ### Anti-leakage
 
-Os 72 jogos da Copa 2026 ficam completamente isolados do treinamento. O modelo nunca vê os resultados que está prevendo.
+Os jogos da Copa 2026 ficam completamente isolados do treinamento. O modelo nunca vê os resultados que está prevendo.
+
+### Atualização em tempo real
+
+A página "Registrar Resultado" permite inserir placares manualmente conforme os jogos acontecem. Ao registrar, o pipeline recalcula o ELO de todas as seleções e roda novamente as 1.000 simulações Monte Carlo, atualizando as probabilidades de título automaticamente.
 
 ---
 
@@ -88,13 +99,14 @@ Os 72 jogos da Copa 2026 ficam completamente isolados do treinamento. O modelo n
 |--------|-----------|
 | Probabilidades pré-computadas | Top 12 favoritas ao título com gráfico e tabela por fase |
 | Simulação ao vivo | Simula um torneio completo aleatório — pódio, grupos e mata-mata |
-| Explorador de partidas | Escolha dois times e veja gols esperados e probabilidades V/E/D |
+| Explorador de partidas | Escolha dois times: xG, probabilidades V/E/D, palpite de placar, últimos jogos e H2H |
+| Registrar Resultado | Insere placar real e recalcula ELO + Monte Carlo automaticamente |
 
 ---
 
 ## Resultado do modelo
 
-Top favoritas segundo 1.000 simulações Monte Carlo:
+Top favoritas segundo 1.000 simulações Monte Carlo (pré-torneio):
 
 | Seleção | Prob. Campeã |
 |---------|-------------|
@@ -110,11 +122,10 @@ Top favoritas segundo 1.000 simulações Monte Carlo:
 
 - Python 3.12, pandas, NumPy
 - statsmodels — GLM Poisson
-- SciPy — otimização (matching bipartido)
 - SQLAlchemy + psycopg2 — acesso ao banco
 - Supabase (PostgreSQL) — banco de dados na nuvem
 - Streamlit + Altair — dashboard interativo
-- Hugging Face Spaces + Docker — deploy público
+- Streamlit Cloud — deploy público (auto-deploy a cada push no main)
 
 ---
 
@@ -166,9 +177,8 @@ copa2026-predict/
 │   ├── previsao.py    # Previsão de partidas
 │   ├── monte_carlo.py # Simulação do torneio
 │   ├── poisson.py     # Utilitários Poisson
-│   └── bandeiras.py   # Emojis de bandeiras
-├── app.py             # Dashboard Streamlit
-├── Dockerfile         # Deploy no HF Spaces
+│   └── bandeiras.py   # Bandeiras via flagcdn.com
+├── app.py             # Dashboard Streamlit (4 páginas)
 └── requirements.txt
 ```
 
