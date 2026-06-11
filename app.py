@@ -30,6 +30,7 @@ except Exception:
 from db import get_engine  # noqa: E402
 from previsao import PESO_TORNEIO_COPA, carregar_modelos, prever_jogo  # noqa: E402
 import poisson as _poisson  # noqa: E402
+import elo as _elo  # noqa: E402
 from monte_carlo import NOMES_RODADA, preparar, simular_torneio_detalhado, slots_terceiros  # noqa: E402
 from bandeiras import bandeira, com_bandeira, com_bandeira_html  # noqa: E402
 
@@ -249,6 +250,91 @@ def pagina_explorador():
                 st.markdown(linha, unsafe_allow_html=True)
 
 
+def pagina_registrar():
+    st.title("⚽ Registrar Resultado")
+    st.caption("Insira o resultado de um jogo da Copa 2026. O ELO e as probabilidades são atualizados automaticamente.")
+
+    grupos_df = pd.read_csv(os.path.join(os.path.dirname(__file__), "data", "grupos_copa2026.csv"))
+    times_copa = sorted(grupos_df["nation"].tolist())
+
+    data_jogo = st.date_input("Data do jogo", value=pd.Timestamp.today())
+
+    c1, c2, c3, c4 = st.columns([3, 1, 1, 3])
+    casa = c1.selectbox("Time da casa", times_copa, index=0)
+    gols_casa = c2.number_input("Gols", min_value=0, max_value=20, value=0, key="gc")
+    gols_visit = c3.number_input("Gols", min_value=0, max_value=20, value=0, key="gv")
+    visitante = c4.selectbox("Visitante", times_copa, index=1)
+
+    if st.button("✅ Registrar e atualizar previsões"):
+        if casa == visitante:
+            st.error("Escolha times diferentes.")
+            return
+
+        # Verifica se já existe
+        existe = pd.read_sql(
+            "SELECT COUNT(*) FROM silver_ponderado WHERE data = %(d)s AND time_casa = %(c)s AND time_visitante = %(v)s",
+            _engine(), params={"d": str(data_jogo), "c": casa, "v": visitante}
+        ).iloc[0, 0]
+        if existe:
+            st.warning("Este jogo já foi registrado.")
+            return
+
+        DATA_REF = pd.Timestamp("2026-06-11")
+        idade_anos = max((DATA_REF - pd.Timestamp(str(data_jogo))).days / 365.25, 0)
+        peso_recencia = float(0.5 ** (idade_anos / 5))
+
+        conn = _engine().raw_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO silver_ponderado
+                        (data, time_casa, time_visitante, gols_casa, gols_visitante,
+                         torneio, cidade, pais, neutro, eh_amistoso, peso_torneio, peso_recencia)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (str(data_jogo), casa, visitante, int(gols_casa), int(gols_visit),
+                      "FIFA World Cup", "", "World", True, False, 3, peso_recencia))
+            conn.commit()
+        finally:
+            conn.close()
+
+        with st.spinner("Recalculando ELO..."):
+            df_todos = pd.read_sql(
+                "SELECT id, data, time_casa, time_visitante, gols_casa, gols_visitante, neutro, peso_torneio "
+                "FROM silver_ponderado ORDER BY data, id",
+                _engine(), parse_dates=["data"]
+            )
+            pre, atual = _elo.calcular_elo(df_todos)
+            _elo.gravar(pre, atual)
+
+        with st.spinner("Atualizando simulação Monte Carlo..."):
+            import monte_carlo as _mc
+            import numpy as np
+            np.random.seed(42)
+            grupo_de, times_do_grupo, jogos_grupo, calendario, lambdas = _mc.preparar()
+            slots_3 = _mc.slots_terceiros(calendario)
+            contagem = {t: np.zeros(6, dtype=int) for t in grupo_de}
+            for _ in range(_mc.N_SIMULACOES):
+                nivel = _mc.simular_torneio(grupo_de, times_do_grupo, jogos_grupo, calendario, lambdas, slots_3)
+                for t, nv in nivel.items():
+                    if nv >= 1:
+                        contagem[t][:nv] += 1
+            linhas = [{"selecao": t, **{c: contagem[t][k] / _mc.N_SIMULACOES for k, c in enumerate(_mc.COLS_PROB)}}
+                      for t in grupo_de]
+            df_prob = pd.DataFrame(linhas).sort_values("prob_campea", ascending=False)
+            _mc.gravar(df_prob)
+
+        st.cache_resource.clear()
+        st.cache_data.clear()
+
+        vit = "empate" if gols_casa == gols_visit else (casa if gols_casa > gols_visit else visitante)
+        st.success(f"Resultado registrado: {com_bandeira_html(casa)} **{gols_casa} – {gols_visit}** {com_bandeira_html(visitante)}", icon=None)
+        st.success("ELO e probabilidades atualizados! Veja a página de Probabilidades.")
+
+        st.subheader("Top 5 favoritas ao título (atualizado)")
+        for _, r in df_prob.head(5).iterrows():
+            st.markdown(f"{com_bandeira_html(r['selecao'])} **{r['selecao']}** — {r['prob_campea']*100:.1f}%", unsafe_allow_html=True)
+
+
 # --------------------------------------------------------------------------- #
 # Navegação
 # --------------------------------------------------------------------------- #
@@ -256,6 +342,7 @@ PAGINAS = {
     "Probabilidades pré-computadas": pagina_probabilidades,
     "Simulação ao vivo": pagina_simulacao,
     "Explorador de partidas": pagina_explorador,
+    "Registrar Resultado": pagina_registrar,
 }
 
 escolha = st.sidebar.radio("Escolha a página", list(PAGINAS))
