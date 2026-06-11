@@ -138,7 +138,6 @@ def pagina_probabilidades():
 
     st.subheader(f"Probabilidade por fase — top {TOP_N}")
     tabela = df.copy()
-    tabela["selecao"] = tabela["selecao"].map(com_bandeira)
     tabela = tabela.rename(columns=FASES_PT)
     for col in FASES_PT.values():
         tabela[col] = (tabela[col] * 100).round(1)
