@@ -42,6 +42,19 @@ _MODEL_FILES = ["modelo_poisson_casa.pkl", "modelo_poisson_visitante.pkl", "colu
 
 
 @st.cache_data(ttl=3600)
+def _ultimos_jogos(time: str, n: int = 5) -> pd.DataFrame:
+    """Últimos n jogos de um time (qualquer adversário)."""
+    query = """
+        SELECT data, time_casa, gols_casa, gols_visitante, time_visitante, torneio
+        FROM silver_ponderado
+        WHERE time_casa = %(t)s OR time_visitante = %(t)s
+        ORDER BY data DESC
+        LIMIT %(n)s
+    """
+    return pd.read_sql(query, _engine(), params={"t": time, "n": n}, parse_dates=["data"])
+
+
+@st.cache_data(ttl=3600)
 def _historico_h2h(time_a: str, time_b: str, n: int = H2H_N) -> pd.DataFrame:
     """Últimos n jogos entre time_a e time_b, em qualquer ordem de mandante/visitante."""
     query = """
@@ -223,6 +236,36 @@ def pagina_explorador():
                 f"<br><span style='font-size:1rem;color:gray'>{prob:.1f}%</span></div>",
                 unsafe_allow_html=True,
             )
+
+        # Últimos jogos de cada time
+        st.subheader("Últimos jogos")
+        lc1, lc2 = st.columns(2)
+
+        def _render_ultimos(col, time):
+            col.markdown(f"**{com_bandeira_html(time)} {time}**", unsafe_allow_html=True)
+            jogos = _ultimos_jogos(time)
+            if jogos.empty:
+                col.caption("Sem histórico.")
+                return
+            for _, r in jogos.iterrows():
+                eh_casa = r["time_casa"] == time
+                adversario = r["time_visitante"] if eh_casa else r["time_casa"]
+                g_time = r["gols_casa"] if eh_casa else r["gols_visitante"]
+                g_adv  = r["gols_visitante"] if eh_casa else r["gols_casa"]
+                if g_time > g_adv:
+                    badge = "🟢 V"
+                elif g_time == g_adv:
+                    badge = "🟡 E"
+                else:
+                    badge = "🔴 D"
+                col.markdown(
+                    f"{badge} &nbsp; {com_bandeira_html(time, h=14)} **{g_time}–{g_adv}** {com_bandeira_html(adversario, h=14)} {adversario}"
+                    f"<br><span style='color:gray;font-size:0.8em'>{r['data'].strftime('%d/%m/%Y')} · {r['torneio']}</span>",
+                    unsafe_allow_html=True,
+                )
+
+        _render_ultimos(lc1, casa)
+        _render_ultimos(lc2, fora)
 
         # Histórico de confrontos
         st.subheader(f"Últimos confrontos — {casa} vs {fora}")
