@@ -32,7 +32,7 @@ from previsao import PESO_TORNEIO_COPA, carregar_modelos, prever_jogo  # noqa: E
 import poisson as _poisson  # noqa: E402
 import elo as _elo  # noqa: E402
 from monte_carlo import NOMES_RODADA, preparar, simular_torneio_detalhado, slots_terceiros  # noqa: E402
-from bandeiras import bandeira, com_bandeira, com_bandeira_html  # noqa: E402
+from bandeiras import bandeira, com_bandeira, com_bandeira_html, bandeira_img  # noqa: E402
 
 TOP_N = 12  # quantas seleções mostrar na página de probabilidades
 H2H_N = 10  # últimos N confrontos exibidos no explorador
@@ -242,7 +242,7 @@ def pagina_explorador():
         lc1, lc2 = st.columns(2)
 
         def _render_ultimos(col, time):
-            col.markdown(f"**{com_bandeira_html(time)} {time}**", unsafe_allow_html=True)
+            col.markdown(f"**{com_bandeira_html(time)}**", unsafe_allow_html=True)
             jogos = _ultimos_jogos(time)
             if jogos.empty:
                 col.caption("Sem histórico.")
@@ -259,7 +259,7 @@ def pagina_explorador():
                 else:
                     badge = "🔴 D"
                 col.markdown(
-                    f"{badge} &nbsp; {com_bandeira_html(time, h=14)} **{g_time}–{g_adv}** {com_bandeira_html(adversario, h=14)} {adversario}"
+                    f"{badge} &nbsp; {bandeira_img(time, h=14)} **{g_time}–{g_adv}** {com_bandeira_html(adversario, h=14)}"
                     f"<br><span style='color:gray;font-size:0.8em'>{r['data'].strftime('%d/%m/%Y')} · {r['torneio']}</span>",
                     unsafe_allow_html=True,
                 )
