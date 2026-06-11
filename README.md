@@ -12,7 +12,7 @@ pinned: false
 
 Modelo preditivo para a Copa do Mundo FIFA 2026 usando Regressão de Poisson, Rating ELO e Simulação Monte Carlo.
 
-**[Acesse o app ao vivo](https://copa2026-predict.streamlit.app)**
+**[Acesse o app ao vivo]([https://copa2026-predict.streamlit.app](https://copa2026-predict-fyromonubvtaag2awcrucp.streamlit.app/))**
 
 ---
 
