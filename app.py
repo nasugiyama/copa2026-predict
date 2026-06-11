@@ -121,7 +121,6 @@ def pagina_probabilidades():
     st.caption(f"As {TOP_N} seleções com maior chance de título, da maior para a menor "
                "(1000 simulações de Monte Carlo).")
     df = _probabilidades().head(TOP_N).copy()
-    df["selecao"] = df["selecao"].map(com_bandeira)
 
     st.subheader("Favoritas ao título (% de campeã)")
     favoritas = df[["selecao", "prob_campea"]].copy()
@@ -131,14 +130,16 @@ def pagina_probabilidades():
         .mark_bar()
         .encode(
             x=alt.X("pct:Q", title="% de campeã"),
-            y=alt.Y("selecao:N", sort="-x", title=None),  # ordena pela %, maior no topo
+            y=alt.Y("selecao:N", sort="-x", title=None),
             tooltip=[alt.Tooltip("selecao:N", title="Seleção"), alt.Tooltip("pct:Q", title="% campeã")],
         )
     )
     st.altair_chart(grafico, use_container_width=True)
 
     st.subheader(f"Probabilidade por fase — top {TOP_N}")
-    tabela = df.rename(columns=FASES_PT).copy()
+    tabela = df.copy()
+    tabela["selecao"] = tabela["selecao"].map(com_bandeira)
+    tabela = tabela.rename(columns=FASES_PT)
     for col in FASES_PT.values():
         tabela[col] = (tabela[col] * 100).round(1)
     st.dataframe(
